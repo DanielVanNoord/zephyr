@@ -104,19 +104,26 @@ extern u32_t pcie_get_iobar(pcie_bdf_t bdf, unsigned int index);
 extern void pcie_set_cmd(pcie_bdf_t bdf, u32_t bits, bool on);
 
 /**
+ * @brief Return the IRQ assigned by the firmware/board to an endpoint.
+ *
+ * @param bdf the PCI(e) endpoint
+ * @return the IRQ number, or PCIE_CONF_INTR_IRQ_NONE if unknown.
+ */
+extern unsigned int pcie_wired_irq(pcie_bdf_t bdf);
+
+/**
  * @brief Enable the PCI(e) endpoint to generate the specified IRQ.
  *
  * @param bdf the PCI(e) endpoint
  * @param irq the IRQ to generate
- * @return true if successful, false otherwise
  *
  * If MSI is enabled and the endpoint supports it, the endpoint will
- * be configured to generate the specified IRQ via MSI. Otherwise, the
- * endpoint configuration space is queried to ensure that its wired
- * IRQ has been routed by the boot firmware to the specified IRQ, and
- * and the IRQ is enabled (at the I/O APIC, or wherever appropriate).
+ * be configured to generate the specified IRQ via MSI. Otherwise, it
+ * is assumed that the IRQ IRQ has been routed by the boot firmware
+ * to the specified IRQ, and the IRQ is enabled (at the I/O APIC, or
+ * wherever appropriate).
  */
-extern bool pcie_irq_enable(pcie_bdf_t bdf, unsigned int irq);
+extern void pcie_irq_enable(pcie_bdf_t bdf, unsigned int irq);
 
 /*
  * Configuration word 0 aligns directly with pcie_id_t.

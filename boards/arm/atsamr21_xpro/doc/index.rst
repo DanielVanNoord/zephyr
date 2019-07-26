@@ -49,6 +49,8 @@ features:
 +-----------+------------+--------------------------------------+
 | SPI       | on-chip    | Serial Peripheral Interface ports    |
 +-----------+------------+--------------------------------------+
+| I2C       | on-chip    | I2C Peripheral Interface ports       |
++-----------+------------+--------------------------------------+
 
 Other hardware features are not currently supported by Zephyr.
 
@@ -73,6 +75,8 @@ Default Zephyr Peripheral Mapping:
 ----------------------------------
 - SERCOM0 USART TX : PA5
 - SERCOM0 USART RX : PA4
+- SERCOM1 I2C SDA  : PA16
+- SERCOM1 I2C SCL  : PA17
 - SERCOM5 SPI MISO : PB02
 - SERCOM5 SPI MOSI : PB22
 - SERCOM5 SPI SCK  : PB23
@@ -108,6 +112,7 @@ time, the internal pull-up resistors are not sufficient for stable bus
 operation. You probably have to connect external pull-ups to both bus lines. 10K
 is a good value to start with.
 
+- SERCOM1 is exposed via Xplained Pro Standard Extension Header
 
 Radio
 =====
@@ -131,11 +136,11 @@ externally connected SPI devices.
 +-------------+------------------------------------------------------------------------------------------+
 | Device      | SERCOM4                                                                                  |
 +-------------+------------------------------------------------------------------------------------------+
-| MOSI        | PB30 (OUT, SPI mosi)                                                                     |
+| MOSI        | PB30 (OUT, SPI MOSI)                                                                     |
 +-------------+------------------------------------------------------------------------------------------+
-| MISO        | PC19 (IN, SPI miso)                                                                      |
+| MISO        | PC19 (IN, SPI MISO)                                                                      |
 +-------------+------------------------------------------------------------------------------------------+
-| SCLK        | PC18 (OUT, SPI sclk)                                                                     |
+| SCLK        | PC18 (OUT, SPI SCLK)                                                                     |
 +-------------+------------------------------------------------------------------------------------------+
 | CS          | PB31 (OUT, GPIO output)                                                                  |
 +-------------+------------------------------------------------------------------------------------------+

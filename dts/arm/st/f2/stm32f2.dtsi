@@ -46,7 +46,6 @@
 
 		rcc: rcc@40023800 {
 			compatible = "st,stm32-rcc";
-			clocks-controller;
 			#clock-cells = <2>;
 			reg = <0x40023800 0x400>;
 			label = "STM32_CLK_RCC";
@@ -209,9 +208,19 @@
 			num-bidir-endpoints = <4>;
 			ram-size = <1280>;
 			maximum-speed = "full-speed";
+			clocks = <&rcc STM32_CLOCK_BUS_AHB1 0x20000000>;
 			phys = <&otgfs_phy>;
 			status = "disabled";
 			label = "OTGFS";
+		};
+
+		adc1: adc@40012000 {
+			compatible = "st,stm32-adc";
+			reg = <0x40012000 0x400>;
+			clocks = <&rcc STM32_CLOCK_BUS_APB2 0x00000100>;
+			interrupts = <18 0>;
+			status = "disabled";
+			label = "ADC_1";
 		};
 	};
 

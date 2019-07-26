@@ -86,7 +86,8 @@ kobjects = OrderedDict ([
     ("k_timer", (None, False)),
     ("_k_thread_stack_element", (None, False)),
     ("device", (None, False)),
-    ("sys_mutex", (None, True))
+    ("sys_mutex", (None, True)),
+    ("k_futex", (None, True))
 ])
 
 
@@ -111,6 +112,7 @@ subsystems = [
     "spi_driver_api",
     "uart_driver_api",
     "can_driver_api",
+    "ptp_clock_driver_api",
 ]
 
 
@@ -162,11 +164,20 @@ void z_object_wordlist_foreach(_wordlist_cb_func_t func, void *context)
 def write_gperf_table(fp, eh, objs, static_begin, static_end):
     fp.write(header)
     num_mutexes = eh.get_sys_mutex_counter()
-    if (num_mutexes != 0):
+    if num_mutexes != 0:
         fp.write("static struct k_mutex kernel_mutexes[%d] = {\n" % num_mutexes)
         for i in range(num_mutexes):
             fp.write("_K_MUTEX_INITIALIZER(kernel_mutexes[%d])" % i)
-            if (i != num_mutexes - 1):
+            if i != num_mutexes - 1:
+                fp.write(", ")
+        fp.write("};\n")
+
+    num_futex = eh.get_futex_counter()
+    if (num_futex != 0):
+        fp.write("static struct z_futex_data futex_data[%d] = {\n" % num_futex)
+        for i in range(num_futex):
+            fp.write("Z_FUTEX_DATA_INITIALIZER(futex_data[%d])" % i)
+            if (i != num_futex - 1):
                 fp.write(", ")
         fp.write("};\n")
 
@@ -185,6 +196,7 @@ def write_gperf_table(fp, eh, objs, static_begin, static_end):
         # either completely initialized at build time, or done automatically
         # at boot during some PRE_KERNEL_* phase
         initialized = obj_addr >= static_begin and obj_addr < static_end
+        is_driver = obj_type.startswith("K_OBJ_DRIVER_")
 
         byte_str = struct.pack("<I" if eh.little_endian else ">I", obj_addr)
         fp.write("\"")
@@ -192,11 +204,13 @@ def write_gperf_table(fp, eh, objs, static_begin, static_end):
             val = "\\x%02x" % byte
             fp.write(val)
 
-        fp.write(
-            "\",{},%s,%s,%s\n" %
-            (obj_type,
-             "K_OBJ_FLAG_INITIALIZED" if initialized else "0",
-             str(ko.data)))
+        flags = "0"
+        if (initialized):
+            flags += " | K_OBJ_FLAG_INITIALIZED"
+        if (is_driver):
+            flags += " | K_OBJ_FLAG_DRIVER"
+
+        fp.write("\", {}, %s, %s, %s\n" % (obj_type, flags, str(ko.data)))
 
         if obj_type == "K_OBJ_THREAD":
             idx = math.floor(ko.data / 8)

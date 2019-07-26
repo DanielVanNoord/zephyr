@@ -18,14 +18,14 @@
 #include <string.h>
 
 enum pthread_state {
+	/* The thread structure is unallocated and available for reuse. */
+	PTHREAD_TERMINATED = 0,
 	/* The thread is running and joinable. */
-	PTHREAD_JOINABLE = 0,
+	PTHREAD_JOINABLE,
 	/* The thread is running and detached. */
 	PTHREAD_DETACHED,
 	/* A joinable thread exited and its return code is available. */
-	PTHREAD_EXITED,
-	/* The thread structure is unallocated and available for reuse. */
-	PTHREAD_TERMINATED
+	PTHREAD_EXITED
 };
 
 struct posix_thread {
@@ -49,8 +49,8 @@ struct posix_thread {
 };
 
 /* Pthread detach/joinable */
-#define PTHREAD_CREATE_JOINABLE     0
-#define PTHREAD_CREATE_DETACHED     1
+#define PTHREAD_CREATE_JOINABLE     PTHREAD_JOINABLE
+#define PTHREAD_CREATE_DETACHED     PTHREAD_DETACHED
 
 /* Pthread cancellation */
 #define _PTHREAD_CANCEL_POS	0
@@ -160,8 +160,7 @@ static inline int pthread_condattr_destroy(pthread_condattr_t *att)
  * @param name Symbol name of the mutex
  */
 #define PTHREAD_MUTEX_DEFINE(name) \
-	struct pthread_mutex name \
-		__in_section(_k_mutex, static, name) = \
+	struct pthread_mutex name = \
 	{ \
 		.lock_count = 0, \
 		.wait_q = Z_WAIT_Q_INIT(&name.wait_q),	\

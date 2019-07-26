@@ -18,13 +18,17 @@ class OpenOcdBinaryRunner(ZephyrBinaryRunner):
 
     def __init__(self, cfg,
                  pre_cmd=None, load_cmd=None, verify_cmd=None, post_cmd=None,
-                 tui=None,
+                 tui=None, config=None,
                  tcl_port=DEFAULT_OPENOCD_TCL_PORT,
                  telnet_port=DEFAULT_OPENOCD_TELNET_PORT,
                  gdb_port=DEFAULT_OPENOCD_GDB_PORT):
         super(OpenOcdBinaryRunner, self).__init__(cfg)
-        self.openocd_config = path.join(cfg.board_dir, 'support',
-                                        'openocd.cfg')
+
+        if config is not None:
+            self.openocd_config = config
+        else:
+            self.openocd_config = path.join(cfg.board_dir, 'support',
+                    'openocd.cfg')
 
         search_args = []
         if cfg.openocd_search is not None:
@@ -47,6 +51,8 @@ class OpenOcdBinaryRunner(ZephyrBinaryRunner):
 
     @classmethod
     def do_add_parser(cls, parser):
+        parser.add_argument('--config',
+                            help='if given, override default config file')
         # Options for flashing:
         parser.add_argument('--cmd-pre-load',
                             help='Command to run before flashing')
@@ -75,11 +81,12 @@ class OpenOcdBinaryRunner(ZephyrBinaryRunner):
             cfg,
             pre_cmd=args.cmd_pre_load, load_cmd=args.cmd_load,
             verify_cmd=args.cmd_verify, post_cmd=args.cmd_post_verify,
-            tui=args.tui,
+            tui=args.tui, config=args.config,
             tcl_port=args.tcl_port, telnet_port=args.telnet_port,
             gdb_port=args.gdb_port)
 
     def do_run(self, command, **kwargs):
+        self.require(self.openocd_cmd[0])
         if command == 'flash':
             self.do_flash(**kwargs)
         elif command == 'debug':
@@ -129,11 +136,10 @@ class OpenOcdBinaryRunner(ZephyrBinaryRunner):
                        '-c', 'init',
                        '-c', 'targets',
                        '-c', 'halt'])
-
         gdb_cmd = (self.gdb_cmd + self.tui_arg +
                    ['-ex', 'target remote :{}'.format(self.gdb_port),
                     self.elf_name])
-
+        self.require(gdb_cmd[0])
         self.run_server_and_client(server_cmd, gdb_cmd)
 
     def do_debugserver(self, **kwargs):

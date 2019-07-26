@@ -46,9 +46,9 @@
         ((NRF_CLOCK_Type *)DT_NORDIC_NRF_CLOCK_CLOCK_BASE_ADDRESS)
 #endif
 
-#ifdef DT_NORDIC_NRF_DPPIC_0_BASE_ADDRESS
+#ifdef DT_INST_0_NORDIC_NRF_DPPIC_BASE_ADDRESS
 #define NRF_DPPIC \
-        ((NRF_DPPIC_Type *)DT_NORDIC_NRF_DPPIC_0_BASE_ADDRESS)
+        ((NRF_DPPIC_Type *)DT_INST_0_NORDIC_NRF_DPPIC_BASE_ADDRESS)
 #endif
 
 #ifdef DT_NORDIC_NRF_FICR_FICR_BASE_ADDRESS
@@ -209,14 +209,11 @@
 #endif
 // <o> NRFX_CLOCK_CONFIG_LF_SRC  - LF clock source.
 
-// <0=> RC
-// <1=> XTAL
-// <2=> Synth
-// <131073=> External Low Swing
-// <196609=> External Full Swing
+// <1=> RC
+// <2=> XTAL
 
 #ifndef NRFX_CLOCK_CONFIG_LF_SRC
-#define NRFX_CLOCK_CONFIG_LF_SRC 1
+#define NRFX_CLOCK_CONFIG_LF_SRC 2
 #endif
 
 // <o> NRFX_CLOCK_CONFIG_IRQ_PRIORITY  - Interrupt priority.
@@ -1973,22 +1970,22 @@
 #ifdef CONFIG_NRFX_UARTE
 #define NRFX_UARTE_ENABLED 1
 #endif
-// <o> NRFX_UARTE0_ENABLED - Enables UARTE0 instance.
+// <q> NRFX_UARTE0_ENABLED - Enables UARTE0 instance.
 #ifdef CONFIG_NRFX_UARTE0
 #define NRFX_UARTE0_ENABLED 1
 #endif
 
-// <o> NRFX_UARTE1_ENABLED - Enables UARTE1 instance.
+// <q> NRFX_UARTE1_ENABLED - Enables UARTE1 instance.
 #ifdef CONFIG_NRFX_UARTE1
 #define NRFX_UARTE1_ENABLED 1
 #endif
 
-// <o> NRFX_UARTE2_ENABLED - Enables UARTE2 instance.
+// <q> NRFX_UARTE2_ENABLED - Enables UARTE2 instance.
 #ifdef CONFIG_NRFX_UARTE2
 #define NRFX_UARTE2_ENABLED 1
 #endif
 
-// <o> NRFX_UARTE3_ENABLED - Enables UARTE3 instance.
+// <q> NRFX_UARTE3_ENABLED - Enables UARTE3 instance.
 #ifdef CONFIG_NRFX_UARTE3
 #define NRFX_UARTE3_ENABLED 1
 #endif

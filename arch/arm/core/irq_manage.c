@@ -17,13 +17,13 @@
 #include <kernel.h>
 #include <arch/cpu.h>
 #include <arch/arm/cortex_m/cmsis.h>
-#include <misc/__assert.h>
+#include <sys/__assert.h>
 #include <toolchain.h>
 #include <linker/sections.h>
 #include <sw_isr_table.h>
 #include <irq.h>
 #include <kernel_structs.h>
-#include <tracing.h>
+#include <debug/tracing.h>
 
 extern void __reserved(void);
 
@@ -88,7 +88,7 @@ void z_irq_priority_set(unsigned int irq, unsigned int prio, u32_t flags)
 	 * of priority levels reserved by the kernel.
 	 */
 
-#if CONFIG_ZERO_LATENCY_IRQS
+#if defined(CONFIG_ZERO_LATENCY_IRQS)
 	/* If we have zero latency interrupts, those interrupts will
 	 * run at a priority level which is not masked by irq_lock().
 	 * Our policy is to express priority levels with special properties

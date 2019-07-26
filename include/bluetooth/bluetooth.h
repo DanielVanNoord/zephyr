@@ -19,8 +19,8 @@
 
 #include <stdbool.h>
 #include <string.h>
-#include <misc/printk.h>
-#include <misc/util.h>
+#include <sys/printk.h>
+#include <sys/util.h>
 #include <net/buf.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/crypto.h>
@@ -497,11 +497,24 @@ void bt_data_parse(struct net_buf_simple *ad,
 		   bool (*func)(struct bt_data *data, void *user_data),
 		   void *user_data);
 
+/** OOB data that is specific for LE SC pairing method. */
+struct bt_le_oob_sc_data {
+	/** Random Number. */
+	u8_t r[16];
+
+	/** Confirm Value. */
+	u8_t c[16];
+};
+
+/** General OOB data. */
 struct bt_le_oob {
 	/** LE address. If local privacy is enabled this is Resolvable Private
 	 *  Address.
 	 */
 	bt_addr_le_t addr;
+
+	/** OOB data that are relevant for LESC pairing. */
+	struct bt_le_oob_sc_data le_sc_data;
 };
 
 /**
@@ -516,6 +529,9 @@ struct bt_le_oob {
  *
  * @param id  Local identity, in most cases BT_ID_DEFAULT.
  * @param oob LE related information
+ *
+ *  @return Zero on success or error code otherwise, positive in case
+ *  of protocol error or negative (POSIX) in case of stack internal error
  */
 int bt_le_oob_get_local(u8_t id, struct bt_le_oob *oob);
 
@@ -667,10 +683,10 @@ static inline int bt_addr_le_to_str(const bt_addr_le_t *addr, char *str,
 		strcpy(type, "random");
 		break;
 	case BT_ADDR_LE_PUBLIC_ID:
-		strcpy(type, "public id");
+		strcpy(type, "public-id");
 		break;
 	case BT_ADDR_LE_RANDOM_ID:
-		strcpy(type, "random id");
+		strcpy(type, "random-id");
 		break;
 	default:
 		snprintk(type, sizeof(type), "0x%02x", addr->type);
@@ -681,6 +697,27 @@ static inline int bt_addr_le_to_str(const bt_addr_le_t *addr, char *str,
 			addr->a.val[5], addr->a.val[4], addr->a.val[3],
 			addr->a.val[2], addr->a.val[1], addr->a.val[0], type);
 }
+
+/**
+ * @brief Convert Bluetooth address from string to binary.
+ *
+ * @param[in]  str   The string representation of a Bluetooth address.
+ * @param[out] addr  Address of buffer to store the Bluetooth address
+ *
+ *  @return Zero on success or (negative) error code otherwise.
+ */
+int bt_addr_from_str(const char *str, bt_addr_t *addr);
+
+/**
+ * @brief Convert LE Bluetooth address from string to binary.
+ *
+ * @param[in]  str   The string representation of an LE Bluetooth address.
+ * @param[in]  type  The string representation of the LE Bluetooth address type.
+ * @param[out] addr  Address of buffer to store the LE Bluetooth address
+ *
+ *  @return Zero on success or (negative) error code otherwise.
+ */
+int bt_addr_le_from_str(const char *str, const char *type, bt_addr_le_t *addr);
 
 /** @brief Enable/disable set controller in discoverable state.
  *

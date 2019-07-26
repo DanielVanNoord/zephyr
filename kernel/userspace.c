@@ -7,10 +7,11 @@
 
 #include <kernel.h>
 #include <string.h>
-#include <misc/printk.h>
-#include <misc/rb.h>
+#include <sys/math_extras.h>
+#include <sys/printk.h>
+#include <sys/rb.h>
 #include <kernel_structs.h>
-#include <sys_io.h>
+#include <sys/sys_io.h>
 #include <ksched.h>
 #include <syscall.h>
 #include <syscall_handler.h>
@@ -18,16 +19,16 @@
 #include <init.h>
 #include <stdbool.h>
 #include <app_memory/app_memdomain.h>
-#include <misc/libc-hooks.h>
-#include <misc/mutex.h>
+#include <sys/libc-hooks.h>
+#include <sys/mutex.h>
 
 #ifdef Z_LIBC_PARTITION_EXISTS
 K_APPMEM_PARTITION_DEFINE(z_libc_partition);
 #endif
 
 /* TODO: Find a better place to put this. Since we pull the entire
- * libext__lib__crypto__mbedtls.a globals into app shared memory
- * section, we can't put this in ext/lib/crypto/mbedtls/zephyr_init.c
+ * lib..__modules__crypto__mbedtls.a  globals into app shared memory
+ * section, we can't put this in zephyr_init.c of the mbedtls module.
  */
 #ifdef CONFIG_MBEDTLS
 K_APPMEM_PARTITION_DEFINE(k_mbedtls_partition);
@@ -35,7 +36,7 @@ K_APPMEM_PARTITION_DEFINE(k_mbedtls_partition);
 
 #define LOG_LEVEL CONFIG_KERNEL_LOG_LEVEL
 #include <logging/log.h>
-LOG_MODULE_DECLARE(kernel);
+LOG_MODULE_DECLARE(os);
 
 /* The originally synchronization strategy made heavy use of recursive
  * irq_locking, which ports poorly to spinlocks which are
@@ -672,7 +673,7 @@ int z_user_to_copy(void *dst, const void *src, size_t size)
 
 char *z_user_string_alloc_copy(const char *src, size_t maxlen)
 {
-	unsigned long actual_len;
+	size_t actual_len;
 	int err;
 	char *ret = NULL;
 
@@ -682,10 +683,10 @@ char *z_user_string_alloc_copy(const char *src, size_t maxlen)
 	}
 	if (actual_len == maxlen) {
 		/* Not NULL terminated */
-		printk("string too long %p (%lu)\n", src, actual_len);
+		printk("string too long %p (%zu)\n", src, actual_len);
 		goto out;
 	}
-	if (__builtin_uaddl_overflow(actual_len, 1, &actual_len)) {
+	if (size_add_overflow(actual_len, 1, &actual_len)) {
 		printk("overflow\n");
 		goto out;
 	}
@@ -705,7 +706,7 @@ out:
 
 int z_user_string_copy(char *dst, const char *src, size_t maxlen)
 {
-	unsigned long actual_len;
+	size_t actual_len;
 	int ret, err;
 
 	actual_len = z_user_string_nlen(src, maxlen, &err);
@@ -715,11 +716,11 @@ int z_user_string_copy(char *dst, const char *src, size_t maxlen)
 	}
 	if (actual_len == maxlen) {
 		/* Not NULL terminated */
-		printk("string too long %p (%lu)\n", src, actual_len);
+		printk("string too long %p (%zu)\n", src, actual_len);
 		ret = EINVAL;
 		goto out;
 	}
-	if (__builtin_uaddl_overflow(actual_len, 1, &actual_len)) {
+	if (size_add_overflow(actual_len, 1, &actual_len)) {
 		printk("overflow\n");
 		ret = EINVAL;
 		goto out;
@@ -761,7 +762,7 @@ static u32_t handler_bad_syscall(u32_t bad_id, u32_t arg2, u32_t arg3,
 {
 	printk("Bad system call id %u invoked\n", bad_id);
 	z_arch_syscall_oops(ssf);
-	CODE_UNREACHABLE;
+	CODE_UNREACHABLE; /* LCOV_EXCL_LINE */
 }
 
 static u32_t handler_no_syscall(u32_t arg1, u32_t arg2, u32_t arg3,
@@ -769,7 +770,7 @@ static u32_t handler_no_syscall(u32_t arg1, u32_t arg2, u32_t arg3,
 {
 	printk("Unimplemented system call\n");
 	z_arch_syscall_oops(ssf);
-	CODE_UNREACHABLE;
+	CODE_UNREACHABLE; /* LCOV_EXCL_LINE */
 }
 
 #include <syscall_dispatch.c>

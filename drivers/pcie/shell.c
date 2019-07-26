@@ -29,6 +29,12 @@ static void show_msi(const struct shell *shell, pcie_bdf_t bdf)
 			      (data & PCIE_MSI_MCR_64) ? ", 64-bit" : "",
 			      (data & PCIE_MSI_MCR_EN) ? ", enabled" : "");
 	}
+
+	msi = pcie_get_cap(bdf, PCIE_MSIX_CAP_ID);
+
+	if (msi) {
+		shell_fprintf(shell, SHELL_NORMAL, "    MSI-X support\n");
+	}
 #endif
 }
 
@@ -58,6 +64,7 @@ static void show_bars(const struct shell *shell, pcie_bdf_t bdf)
 static void show(const struct shell *shell, pcie_bdf_t bdf)
 {
 	u32_t data;
+	unsigned int irq;
 
 	data = pcie_conf_read(bdf, PCIE_CONF_ID);
 
@@ -88,11 +95,10 @@ static void show(const struct shell *shell, pcie_bdf_t bdf)
 		shell_fprintf(shell, SHELL_NORMAL, "\n");
 		show_bars(shell, bdf);
 		show_msi(shell, bdf);
-		data = pcie_conf_read(bdf, PCIE_CONF_INTR);
-		if (PCIE_CONF_INTR_IRQ(data) != PCIE_CONF_INTR_IRQ_NONE) {
+		irq = pcie_wired_irq(bdf);
+		if (irq != PCIE_CONF_INTR_IRQ_NONE) {
 			shell_fprintf(shell, SHELL_NORMAL,
-				      "    wired interrupt on IRQ %d\n",
-				      PCIE_CONF_INTR_IRQ(data));
+				      "    wired interrupt on IRQ %d\n", irq);
 		}
 	}
 }

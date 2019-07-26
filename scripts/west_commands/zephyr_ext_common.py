@@ -8,8 +8,6 @@ Note that common helpers used by the flash and debug extension
 commands are in run_common -- that's for common code used by
 commands which specifically execute runners.'''
 
-import os
-
 from west import log
 from west.commands import WestCommand
 
@@ -42,12 +40,9 @@ class Forceable(WestCommand):
 def cached_runner_config(build_dir, cache):
     '''Parse the RunnerConfig from a build directory and CMake Cache.'''
     board_dir = cache['ZEPHYR_RUNNER_CONFIG_BOARD_DIR']
-    elf_file = cache.get('ZEPHYR_RUNNER_CONFIG_ELF_FILE',
-                         cache['ZEPHYR_RUNNER_CONFIG_KERNEL_ELF'])
-    hex_file = cache.get('ZEPHYR_RUNNER_CONFIG_HEX_FILE',
-                         cache['ZEPHYR_RUNNER_CONFIG_KERNEL_HEX'])
-    bin_file = cache.get('ZEPHYR_RUNNER_CONFIG_BIN_FILE',
-                         cache['ZEPHYR_RUNNER_CONFIG_KERNEL_BIN'])
+    elf_file = cache.get('ZEPHYR_RUNNER_CONFIG_KERNEL_ELF')
+    hex_file = cache.get('ZEPHYR_RUNNER_CONFIG_KERNEL_HEX')
+    bin_file = cache.get('ZEPHYR_RUNNER_CONFIG_KERNEL_BIN')
     gdb = cache.get('ZEPHYR_RUNNER_CONFIG_GDB')
     openocd = cache.get('ZEPHYR_RUNNER_CONFIG_OPENOCD')
     openocd_search = cache.get('ZEPHYR_RUNNER_CONFIG_OPENOCD_SEARCH')

@@ -21,7 +21,7 @@
  */
 
 #include <kernel.h>
-#include <atomic.h>
+#include <sys/atomic.h>
 
 #include <net/net_ip.h>
 #include <net/net_if.h>
@@ -274,6 +274,10 @@ struct net_context {
 	void *offload_context;
 #endif /* CONFIG_NET_OFFLOAD */
 
+#if defined(CONFIG_NET_SOCKETS_CAN)
+	int can_filter_id;
+#endif /* CONFIG_NET_SOCKETS_CAN */
+
 	/** Option values */
 	struct {
 #if defined(CONFIG_NET_CONTEXT_PRIORITY)
@@ -282,6 +286,9 @@ struct net_context {
 #endif
 #if defined(CONFIG_NET_CONTEXT_TIMESTAMP)
 		bool timestamp;
+#endif
+#if defined(CONFIG_NET_CONTEXT_TXTIME)
+		bool txtime;
 #endif
 	} options;
 
@@ -431,6 +438,56 @@ static inline void net_context_set_type(struct net_context *context,
 
 	context->flags |= flag;
 }
+
+/**
+ * @brief Set CAN filter id for this network context.
+ *
+ * @details This function sets the CAN filter id of the context.
+ *
+ * @param context Network context.
+ * @param filter_id CAN filter id
+ */
+#if defined(CONFIG_NET_SOCKETS_CAN)
+static inline void net_context_set_filter_id(struct net_context *context,
+					     int filter_id)
+{
+	NET_ASSERT(context);
+
+	context->can_filter_id = filter_id;
+}
+#else
+static inline void net_context_set_filter_id(struct net_context *context,
+					     int filter_id)
+{
+	ARG_UNUSED(context);
+	ARG_UNUSED(filter_id);
+}
+#endif
+
+/**
+ * @brief Get CAN filter id for this network context.
+ *
+ * @details This function gets the CAN filter id of the context.
+ *
+ * @param context Network context.
+ *
+ * @return Filter id of this network context
+ */
+#if defined(CONFIG_NET_SOCKETS_CAN)
+static inline int net_context_get_filter_id(struct net_context *context)
+{
+	NET_ASSERT(context);
+
+	return context->can_filter_id;
+}
+#else
+static inline int net_context_get_filter_id(struct net_context *context)
+{
+	ARG_UNUSED(context);
+
+	return -1;
+}
+#endif
 
 /**
  * @brief Get context IP protocol for this network context.
@@ -798,6 +855,35 @@ int net_context_sendto(struct net_context *context,
 		       void *user_data);
 
 /**
+ * @brief Send data in iovec to a peer specified in msghdr struct.
+ *
+ * @details This function has similar semantics as Posix sendmsg() call.
+ * For unconnected socket, the msg_name field in msghdr must be set. For
+ * connected socket the msg_name should be set to NULL, and msg_namelen to 0.
+ * This function will return immediately if the timeout is set to K_NO_WAIT.
+ * If the timeout is set to K_FOREVER, the function will wait until the network
+ * buffer is sent. Timeout value > 0 will wait as many ms. After the network
+ * buffer is sent, a caller-supplied callback is called. The callback is called
+ * even if timeout was set to K_FOREVER, the callback is called before this
+ * function will return. The callback is not called if the timeout expires.
+ *
+ * @param context The network context to use.
+ * @param msghdr The data to send
+ * @param flags Flags for the sending.
+ * @param cb Caller-supplied callback function.
+ * @param timeout Timeout for the connection. Possible values
+ * @param user_data Caller-supplied user data.
+ *
+ * @return numbers of bytes sent on success, a negative errno otherwise
+ */
+int net_context_sendmsg(struct net_context *context,
+			const struct msghdr *msghdr,
+			int flags,
+			net_context_send_cb_t cb,
+			s32_t timeout,
+			void *user_data);
+
+/**
  * @brief Receive network data from a peer specified by context.
  *
  * @details This function can be used to register a callback function
@@ -864,6 +950,7 @@ int net_context_update_recv_wnd(struct net_context *context,
 enum net_context_option {
 	NET_OPT_PRIORITY	= 1,
 	NET_OPT_TIMESTAMP	= 2,
+	NET_OPT_TXTIME		= 3,
 };
 
 /**

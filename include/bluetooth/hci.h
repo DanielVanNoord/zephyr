@@ -12,7 +12,8 @@
 #include <zephyr/types.h>
 #include <stdbool.h>
 #include <string.h>
-#include <misc/util.h>
+#include <sys/util.h>
+#include <net/buf.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -1361,6 +1362,7 @@ struct bt_hci_cp_le_set_privacy_mode {
 
 /* Event definitions */
 
+#define BT_HCI_EVT_UNKNOWN                      0x00
 #define BT_HCI_EVT_VENDOR                       0xff
 
 #define BT_HCI_EVT_INQUIRY_COMPLETE             0x01
@@ -1913,6 +1915,28 @@ int bt_hci_cmd_send(u16_t opcode, struct net_buf *buf);
   */
 int bt_hci_cmd_send_sync(u16_t opcode, struct net_buf *buf,
 			 struct net_buf **rsp);
+
+/** @typedef bt_hci_vnd_evt_cb_t
+  * @brief Callback type for vendor handling of HCI Vendor-Specific Events.
+  *
+  * A function of this type is registered with bt_hci_register_vnd_evt_cb()
+  * and will be called for any HCI Vendor-Specific Event.
+  *
+  * @param buf Buffer containing event parameters.
+  *
+  * @return true if the function handles the event or false to defer the
+  *         handling of this event back to the stack.
+  */
+typedef bool bt_hci_vnd_evt_cb_t(struct net_buf_simple *buf);
+
+/** Register user callback for HCI Vendor-Specific Events
+  *
+  * @param cb Callback to be called when the stack receives a
+  *           HCI Vendor-Specific Event.
+  *
+  * @return 0 on success or negative error value on failure.
+  */
+int bt_hci_register_vnd_evt_cb(bt_hci_vnd_evt_cb_t cb);
 
 #ifdef __cplusplus
 }

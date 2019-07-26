@@ -6,15 +6,16 @@
 
 #include <arm/armv6-m.dtsi>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/i2c/i2c.h>
 
 / {
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		cpu0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-m0";
+			compatible = "arm,cortex-m0+";
 			reg = <0>;
 		};
 	};
@@ -25,7 +26,7 @@
 		reg = <0x20000000 0x8000>;
 	};
 
-	id: device_id@0 {
+	id: device_id@80a00c {
 		compatible = "atmel,sam0-id";
 		reg =	<0x0080A00C 0x4>,
 			<0x0080A040 0x4>,
@@ -38,6 +39,7 @@
 		pinmux-b = &pinmux_b;
 		port-a = &porta;
 		port-b = &portb;
+		adc-0 = &adc;
 
 		sercom-0 = &sercom0;
 		sercom-1 = &sercom1;
@@ -45,6 +47,8 @@
 		sercom-3 = &sercom3;
 		sercom-4 = &sercom4;
 		sercom-5 = &sercom5;
+
+		tc-4 = &tc4;
 	};
 
 	soc {
@@ -63,6 +67,13 @@
 				reg = <0 0x40000>;
 				write-block-size = <64>;
 			};
+		};
+
+		eic: eic@40001800 {
+			compatible = "atmel,sam0-eic";
+			reg = <0x40001800 0x1C>;
+			interrupts = <4 0>;
+			label = "EIC";
 		};
 
 		pinmux_a: pinmux@41004400 {
@@ -126,6 +137,12 @@
 			label = "SERCOM5";
 		};
 
+		tc4: tc@42003000 {
+			compatible = "atmel,sam0-tc32";
+			reg = <0x42003000 0x20>;
+			label = "TIMER_4";
+		};
+
 		porta: gpio@41004400 {
 			compatible = "atmel,sam0-gpio";
 			reg = <0x41004400 0x80>;
@@ -149,6 +166,19 @@
 			clock-generator = <0>;
 			status = "disabled";
 			label = "RTC";
+		};
+
+		adc: adc@42004000 {
+			compatible = "atmel,sam0-adc";
+			reg = <0x42004000 0x2B>;
+			label = "ADC_0";
+
+			/*
+			 * 2.1 MHz max, so clock it with the
+			 * 8 MHz GCLK / 4 = 2 MHz
+			 */
+			gclk = <3>;
+			prescaler = <4>;
 		};
 	};
 };

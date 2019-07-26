@@ -58,11 +58,18 @@ struct net_pkt_cursor {
  * net_pkt_clone() function.
  */
 struct net_pkt {
-	/** FIFO uses first 4 bytes itself, reserve space */
-	int _reserved;
-
-	/** Internal variable that is used when packet is sent */
-	struct k_work work;
+	union {
+		/** Internal variable that is used when packet is sent
+		 * or received.
+		 */
+		struct k_work work;
+		/** Socket layer will queue received net_pkt into a k_fifo.
+		 * Since this happens after consuming net_pkt's k_work on
+		 * RX path, it is then fine to have both attributes sharing
+		 * the same memory area.
+		 */
+		intptr_t sock_recv_fifo;
+	};
 
 	/** Slab pointer from where it belongs to */
 	struct k_mem_slab *slab;
@@ -88,10 +95,19 @@ struct net_pkt {
 	struct net_if *orig_iface; /* Original network interface */
 #endif
 
+#if defined(CONFIG_NET_PKT_TIMESTAMP) || defined(CONFIG_NET_PKT_TXTIME)
+	union {
 #if defined(CONFIG_NET_PKT_TIMESTAMP)
-	/** Timestamp if available. */
-	struct net_ptp_time timestamp;
-#endif
+		/** Timestamp if available. */
+		struct net_ptp_time timestamp;
+#endif /* CONFIG_NET_PKT_TIMESTAMP */
+#if defined(CONFIG_NET_PKT_TXTIME)
+		/** Network packet TX time in the future (in nanoseconds) */
+		u64_t txtime;
+#endif /* CONFIG_NET_PKT_TXTIME */
+	};
+#endif /* CONFIG_NET_PKT_TIMESTAMP || CONFIG_NET_PKT_TXTIME */
+
 	/** Reference counter */
 	atomic_t atomic_ref;
 
@@ -691,6 +707,31 @@ static inline void net_pkt_set_timestamp(struct net_pkt *pkt,
 	ARG_UNUSED(timestamp);
 }
 #endif /* CONFIG_NET_PKT_TIMESTAMP */
+
+#if defined(CONFIG_NET_PKT_TXTIME)
+static inline u64_t net_pkt_txtime(struct net_pkt *pkt)
+{
+	return pkt->txtime;
+}
+
+static inline void net_pkt_set_txtime(struct net_pkt *pkt, u64_t txtime)
+{
+	pkt->txtime = txtime;
+}
+#else
+static inline u64_t net_pkt_txtime(struct net_pkt *pkt)
+{
+	ARG_UNUSED(pkt);
+
+	return 0;
+}
+
+static inline void net_pkt_set_txtime(struct net_pkt *pkt, u64_t txtime)
+{
+	ARG_UNUSED(pkt);
+	ARG_UNUSED(txtime);
+}
+#endif /* CONFIG_NET_PKT_TXTIME */
 
 static inline size_t net_pkt_get_len(struct net_pkt *pkt)
 {

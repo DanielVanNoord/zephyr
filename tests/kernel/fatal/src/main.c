@@ -11,6 +11,11 @@
 #include <irq_offload.h>
 #include <kswap.h>
 
+#if defined(CONFIG_USERSPACE)
+#include <syscall_handler.h>
+#include "test_syscalls.h"
+#endif
+
 #if defined(CONFIG_X86) && defined(CONFIG_X86_MMU)
 #define STACKSIZE (8192)
 #else
@@ -39,37 +44,10 @@ volatile int rv;
 
 static volatile int crash_reason;
 
-/* On some architectures, k_thread_abort(_current) will return instead
- * of z_swap'ing away.
- *
- * On ARM the PendSV exception is queued and immediately fires upon
- * completing the exception path; the faulting thread is never run
- * again.
- *
- * On Xtensa/asm2 and x86_64 the handler is running in interrupt
- * context and on the interrupt stack and needs to return through the
- * interrupt exit code.
- *
- * In both cases the thread is guaranteed never to run again once we
- * return from the z_SysFatalErrorHandler().
- */
-#if !(defined(CONFIG_ARM) || defined(CONFIG_XTENSA_ASM2) \
-	|| defined(CONFIG_ARC) || defined(CONFIG_X86_64))
-#define ERR_IS_NORETURN 1
-#endif
-
-#ifdef ERR_IS_NORETURN
-FUNC_NORETURN
-#endif
-void z_SysFatalErrorHandler(unsigned int reason, const NANO_ESF *pEsf)
+void k_sys_fatal_error_handler(unsigned int reason, const z_arch_esf_t *pEsf)
 {
 	TC_PRINT("Caught system error -- reason %d\n", reason);
 	crash_reason = reason;
-
-	k_thread_abort(_current);
-#ifdef ERR_IS_NORETURN
-	CODE_UNREACHABLE;
-#endif
 }
 
 void alt_thread1(void)
@@ -115,6 +93,12 @@ void alt_thread3(void)
 	irq_unlock(key);
 }
 
+void alt_thread4(void)
+{
+	__ASSERT(0, "intentionally failed assertion");
+	rv = TC_FAIL;
+}
+
 #ifndef CONFIG_ARCH_POSIX
 #ifdef CONFIG_STACK_SENTINEL
 void blow_up_stack(void)
@@ -136,28 +120,32 @@ void blow_up_stack(void)
 {
 	stack_smasher(37);
 }
-#endif
+
+#if defined(CONFIG_USERSPACE)
+
+void z_impl_blow_up_priv_stack(void)
+{
+	blow_up_stack();
+}
+
+Z_SYSCALL_HANDLER0_SIMPLE_VOID(blow_up_priv_stack);
+
+#endif /* CONFIG_USERSPACE */
+#endif /* CONFIG_STACK_SENTINEL */
 
 void stack_sentinel_timer(void)
 {
-	u32_t cur_tick;
-
-	/* Test that stack overflow check due to timer interrupt works */
-	blow_up_stack();
-	TC_PRINT("waiting for tick advance...\n");
-
-	/* This test has tickless kernel disabled, z_tick_get_32() returns
-	 * the current tick count without trying to offset it by checking
-	 * time elapsed in the driver since last update
+	/* We need to guarantee that we receive an interrupt, so set a
+	 * k_timer and spin until we die.  Spinning alone won't work
+	 * on a tickless kernel.
 	 */
-	cur_tick = z_tick_get_32();
+	struct k_timer timer;
 
-	while (cur_tick == z_tick_get_32()) {
-		/* spin */
+	blow_up_stack();
+	k_timer_init(&timer, NULL, NULL);
+	k_timer_start(&timer, 1, 0);
+	while (true) {
 	}
-
-	TC_ERROR("should never see this\n");
-	rv = TC_FAIL;
 }
 
 void stack_sentinel_swap(void)
@@ -181,6 +169,18 @@ void stack_hw_overflow(void)
 	rv = TC_FAIL;
 }
 
+#if defined(CONFIG_USERSPACE)
+void user_priv_stack_hw_overflow(void)
+{
+	/* Test that HW stack overflow check works
+	 * on a user thread's privilege stack.
+	 */
+	blow_up_priv_stack();
+	TC_ERROR("should never see this\n");
+	rv = TC_FAIL;
+}
+#endif /* CONFIG_USERSPACE */
+
 void check_stack_overflow(void *handler, u32_t flags)
 {
 	crash_reason = -1;
@@ -199,9 +199,9 @@ void check_stack_overflow(void *handler, u32_t flags)
 			NULL, NULL, NULL, K_PRIO_PREEMPT(PRIORITY), flags,
 			K_NO_WAIT);
 
-	zassert_equal(crash_reason, _NANO_ERR_STACK_CHK_FAIL,
+	zassert_equal(crash_reason, K_ERR_STACK_CHK_FAIL,
 		      "bad reason code got %d expected %d\n",
-		      crash_reason, _NANO_ERR_STACK_CHK_FAIL);
+		      crash_reason, K_ERR_STACK_CHK_FAIL);
 	zassert_not_equal(rv, TC_FAIL, "thread was not aborted");
 }
 #endif /* !CONFIG_ARCH_POSIX */
@@ -249,9 +249,9 @@ void test_fatal(void)
 			NULL, NULL, NULL, K_PRIO_COOP(PRIORITY), 0,
 			K_NO_WAIT);
 	k_thread_abort(&alt_thread);
-	zassert_equal(crash_reason, _NANO_ERR_KERNEL_OOPS,
+	zassert_equal(crash_reason, K_ERR_KERNEL_OOPS,
 		      "bad reason code got %d expected %d\n",
-		      crash_reason, _NANO_ERR_KERNEL_OOPS);
+		      crash_reason, K_ERR_KERNEL_OOPS);
 	zassert_not_equal(rv, TC_FAIL, "thread was not aborted");
 
 	TC_PRINT("test alt thread 3: initiate kernel panic\n");
@@ -261,9 +261,22 @@ void test_fatal(void)
 			NULL, NULL, NULL, K_PRIO_COOP(PRIORITY), 0,
 			K_NO_WAIT);
 	k_thread_abort(&alt_thread);
-	zassert_equal(crash_reason, _NANO_ERR_KERNEL_PANIC,
+	zassert_equal(crash_reason, K_ERR_KERNEL_PANIC,
 		      "bad reason code got %d expected %d\n",
-		      crash_reason, _NANO_ERR_KERNEL_PANIC);
+		      crash_reason, K_ERR_KERNEL_PANIC);
+	zassert_not_equal(rv, TC_FAIL, "thread was not aborted");
+
+	TC_PRINT("test alt thread 4: fail assertion\n");
+	k_thread_create(&alt_thread, alt_stack,
+			K_THREAD_STACK_SIZEOF(alt_stack),
+			(k_thread_entry_t)alt_thread4,
+			NULL, NULL, NULL, K_PRIO_COOP(PRIORITY), 0,
+			K_NO_WAIT);
+	k_thread_abort(&alt_thread);
+	/* Default assert_post_action() induces a kernel panic */
+	zassert_equal(crash_reason, K_ERR_KERNEL_PANIC,
+		      "bad reason code got %d expected %d\n",
+		      crash_reason, K_ERR_KERNEL_PANIC);
 	zassert_not_equal(rv, TC_FAIL, "thread was not aborted");
 
 #ifndef CONFIG_ARCH_POSIX
@@ -287,6 +300,15 @@ void test_fatal(void)
 
 	TC_PRINT("test stack HW-based overflow - supervisor 2\n");
 	check_stack_overflow(stack_hw_overflow, 0);
+
+#if defined(CONFIG_FLOAT) && defined(CONFIG_FP_SHARING)
+	TC_PRINT("test stack HW-based overflow (FPU thread) - supervisor 1\n");
+	check_stack_overflow(stack_hw_overflow, K_FP_REGS);
+
+	TC_PRINT("test stack HW-based overflow (FPU thread) - supervisor 2\n");
+	check_stack_overflow(stack_hw_overflow, K_FP_REGS);
+#endif /* CONFIG_FLOAT && CONFIG_FP_SHARING */
+
 #endif /* CONFIG_HW_STACK_PROTECTION */
 
 #ifdef CONFIG_USERSPACE
@@ -296,6 +318,21 @@ void test_fatal(void)
 
 	TC_PRINT("test stack HW-based overflow - user 2\n");
 	check_stack_overflow(stack_hw_overflow, K_USER);
+
+	TC_PRINT("test stack HW-based overflow - user priv stack 1\n");
+	check_stack_overflow(user_priv_stack_hw_overflow, K_USER);
+
+	TC_PRINT("test stack HW-based overflow - user priv stack 2\n");
+	check_stack_overflow(user_priv_stack_hw_overflow, K_USER);
+
+#if defined(CONFIG_FLOAT) && defined(CONFIG_FP_SHARING)
+	TC_PRINT("test stack HW-based overflow (FPU thread) - user 1\n");
+	check_stack_overflow(stack_hw_overflow, K_USER | K_FP_REGS);
+
+	TC_PRINT("test stack HW-based overflow (FPU thread) - user 2\n");
+	check_stack_overflow(stack_hw_overflow, K_USER | K_FP_REGS);
+#endif /* CONFIG_FLOAT && CONFIG_FP_SHARING */
+
 #endif /* CONFIG_USERSPACE */
 
 #endif /* !CONFIG_ARCH_POSIX */

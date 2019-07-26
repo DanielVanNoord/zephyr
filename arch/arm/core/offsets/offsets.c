@@ -29,23 +29,25 @@
 GEN_OFFSET_SYM(_thread_arch_t, basepri);
 GEN_OFFSET_SYM(_thread_arch_t, swap_return_value);
 
-#ifdef CONFIG_USERSPACE
+#if defined(CONFIG_USERSPACE) || defined(CONFIG_FP_SHARING)
 GEN_OFFSET_SYM(_thread_arch_t, mode);
+#if defined(CONFIG_USERSPACE)
 GEN_OFFSET_SYM(_thread_arch_t, priv_stack_start);
+#endif
 #endif
 
 #if defined(CONFIG_FLOAT) && defined(CONFIG_FP_SHARING)
 GEN_OFFSET_SYM(_thread_arch_t, preempt_float);
 #endif
 
-GEN_OFFSET_SYM(_esf_t, a1);
-GEN_OFFSET_SYM(_esf_t, a2);
-GEN_OFFSET_SYM(_esf_t, a3);
-GEN_OFFSET_SYM(_esf_t, a4);
-GEN_OFFSET_SYM(_esf_t, ip);
-GEN_OFFSET_SYM(_esf_t, lr);
-GEN_OFFSET_SYM(_esf_t, pc);
-GEN_OFFSET_SYM(_esf_t, xpsr);
+GEN_OFFSET_SYM(_basic_sf_t, a1);
+GEN_OFFSET_SYM(_basic_sf_t, a2);
+GEN_OFFSET_SYM(_basic_sf_t, a3);
+GEN_OFFSET_SYM(_basic_sf_t, a4);
+GEN_OFFSET_SYM(_basic_sf_t, ip);
+GEN_OFFSET_SYM(_basic_sf_t, lr);
+GEN_OFFSET_SYM(_basic_sf_t, pc);
+GEN_OFFSET_SYM(_basic_sf_t, xpsr);
 
 #if defined(CONFIG_FLOAT) && defined(CONFIG_FP_SHARING)
 GEN_OFFSET_SYM(_esf_t, s);

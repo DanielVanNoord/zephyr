@@ -168,6 +168,7 @@ void mqtt_client_init(struct mqtt_client *client)
 
 	client->protocol_version = MQTT_VERSION_3_1_1;
 	client->clean_session = 1U;
+	client->keepalive = MQTT_KEEPALIVE;
 }
 
 int mqtt_connect(struct mqtt_client *client)
@@ -562,8 +563,8 @@ int mqtt_live(struct mqtt_client *client)
 		elapsed_time = mqtt_elapsed_time_in_ms_get(
 					client->internal.last_activity);
 
-		if ((MQTT_KEEPALIVE > 0) &&
-		    (elapsed_time >= (MQTT_KEEPALIVE * 1000))) {
+		if ((client->keepalive > 0) &&
+		    (elapsed_time >= (client->keepalive * 1000))) {
 			(void)mqtt_ping(client);
 		}
 	}
@@ -596,8 +597,8 @@ int mqtt_input(struct mqtt_client *client)
 	return err_code;
 }
 
-int mqtt_read_publish_payload(struct mqtt_client *client, void *buffer,
-			      size_t length)
+static int read_publish_payload(struct mqtt_client *client, void *buffer,
+				size_t length, bool shall_block)
 {
 	int ret;
 
@@ -614,8 +615,8 @@ int mqtt_read_publish_payload(struct mqtt_client *client, void *buffer,
 		length = client->internal.remaining_payload;
 	}
 
-	ret = mqtt_transport_read(client, buffer, length);
-	if (ret == -EAGAIN) {
+	ret = mqtt_transport_read(client, buffer, length, shall_block);
+	if (!shall_block && ret == -EAGAIN) {
 		goto exit;
 	}
 
@@ -635,3 +636,37 @@ exit:
 
 	return ret;
 }
+
+int mqtt_read_publish_payload(struct mqtt_client *client, void *buffer,
+			      size_t length)
+{
+	return read_publish_payload(client, buffer, length, false);
+}
+
+int mqtt_read_publish_payload_blocking(struct mqtt_client *client, void *buffer,
+				       size_t length)
+{
+	return read_publish_payload(client, buffer, length, true);
+}
+
+int mqtt_readall_publish_payload(struct mqtt_client *client, u8_t *buffer,
+				 size_t length)
+{
+	u8_t *end = buffer + length;
+
+	while (buffer < end) {
+		int ret = mqtt_read_publish_payload_blocking(client, buffer,
+							     end - buffer);
+
+		if (ret < 0) {
+			return ret;
+		} else if (ret == 0) {
+			return -EIO;
+		}
+
+		buffer += ret;
+	}
+
+	return 0;
+}
+

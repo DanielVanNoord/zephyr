@@ -3,9 +3,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
----
+
 title: AMS (Austria Mikro Systeme) Indoor Air Quality Sensor iAQ-core
-version: 0.1
 
 description: >
     This binding gives a base representation of iAQ-core indoor air quality
@@ -17,5 +16,3 @@ inherits:
 properties:
     compatible:
       constraint: "ams,iaqcore"
-
-...

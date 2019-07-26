@@ -12,7 +12,8 @@
 
 #ifndef _ASMLANGUAGE
 #include <kernel.h>
-#include <misc/printk.h>
+#include <sys/printk.h>
+#include <sys/math_extras.h>
 #include <kernel_internal.h>
 #include <stdbool.h>
 
@@ -353,9 +354,9 @@ extern int z_user_string_copy(char *dst, const char *src, size_t maxlen);
 #define Z_SYSCALL_MEMORY_ARRAY(ptr, nmemb, size, write) \
 	({ \
 		u32_t product; \
-		Z_SYSCALL_VERIFY_MSG(!__builtin_umul_overflow((u32_t)(nmemb), \
-							      (u32_t)(size), \
-							      &product), \
+		Z_SYSCALL_VERIFY_MSG(!u32_mul_overflow((u32_t)(nmemb), \
+						       (u32_t)(size), \
+						       &product), \
 				     "%ux%u array is too large", \
 				     (u32_t)(nmemb), (u32_t)(size)) ||  \
 			Z_SYSCALL_MEMORY(ptr, product, write); \
@@ -518,7 +519,7 @@ static inline int z_obj_validation_check(struct _k_object *ko,
  * the bolierplate. The macros ensure that the seventh argument is named
  * "ssf" as this is now referenced by various other Z_SYSCALL macros.
  *
- * Use the Z_SYSCALL_HANDLER(name_, arg0, ..., arg6) variant, as it will
+ * Use the Z_SYSCALL_HANDLER(name_, arg1, ..., arg6) variant, as it will
  * automatically deduce the correct version of Z__SYSCALL_HANDLERn() to
  * use depending on the number of arguments.
  */
